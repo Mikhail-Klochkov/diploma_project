@@ -87,7 +87,7 @@ class Functional(tf.Module):
 
     def wrapper_grad(self):
         def inner_grad(vars_x, *args) -> float: # should be a vector of shape np.float
-            if(vars_x.shape[0] != self._tensor.shape[0]):
+            if(vars_x.shape[0] != self._vector.shape[0]):
                 assert (1 != 1) ('Error with different size!: ')
                 return None
             else:
@@ -133,15 +133,10 @@ class Vector_of_space(object):
 
 x_numpy = np.array([2. for a in range(1, 4, 1)], dtype = np.float32)
 x_tens = Vector_of_space(x_numpy, x_numpy.shape[0])
-print(x_tens.__str__())
 
 funct = Functional(x_tens._x,
-                   tuple([1,-2, 3]))
+                   tuple([1, 2, 3]))
 
-
-print_tensor(funct.compute_gradient())
-print(funct)
-print_tensor(funct.compute_hessian())
 F_ = funct.wrap_functionals()
 x_0 = np.array([1, 2, 3])
 print(F_(x_0))

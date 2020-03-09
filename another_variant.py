@@ -17,6 +17,10 @@ x_range_[:-1] # по последнему не смотрят
 
 
 
+@tf.function
+def input_tens(tens):
+    tf.print(tens)
+
 def rosen(x):
     """The Rosenbrock function"""
     return np.sum(100.0*(x[1:]-x[:-1]**2.0)**2.0 + (1-x[:-1])**2.0, axis=0)
@@ -53,7 +57,7 @@ class function(tf.Module):
         return self._another
 
     def __repr__(self):
-        return (self._tensor.__repr__(), self._another.__repr__()).__str__()
+        return (self._tensor.__repr__(), self._another.__repr__())
 
     def _change(self, new_vector):
         @tf.function
@@ -77,31 +81,76 @@ class function(tf.Module):
 
         return _inner
 
-x_tens_ = tf.constant(np.full((5,), 2.))
+    def compute_gradient(self):
+                with tf.GradientTape() as g:
+                    g.watch((self._tensor))
+                    f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
+                    grad_ = g.gradient(f_a, self._tensor)
 
+                return grad_
+
+    def wrapper_grad(self):
+        def inner_grad(vars_x, *args) -> float: # should be a vector of shape np.float
+            if(vars_x.shape[0] != self._tensor.shape[0]):
+                assert (1 != 1) ('Error with different size!: ')
+                return None
+            else:
+                self._change(vars_x)
+                return self.compute_gradient().numpy()
+
+        return inner_grad
+
+    def compute_hessian(self):
+        with tf.GradientTape(persistent = True) as g:
+            g.watch(self._tensor)
+            f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
+            grad_ = g.gradient(f_a, self._tensor)
+            list_ = []
+            for iter_ in range(self._tensor.shape[0]):
+                grad_grad = g.gradient(grad_[iter_], self._tensor)
+                list_.append(grad_grad)
+
+            matrix = tf.convert_to_tensor(list_)
+        return matrix
+
+
+    def wrapper_hessian(self):
+        def inner_hessian(vars_x, *args) -> float:
+            if(vars_x.shape[0] != self._tensor.shape[0]):
+                assert (1 != 1) ('Error with different size!: ')
+                return None
+            else:
+                self._change(vars_x)
+                return self.compute_hessian().numpy()
+
+        return inner_hessian
+
+
+x_tens_ = tf.constant(np.full((5,), 2.))
 x_another = tf.constant(np.full((5,), 1.5))
 
-x_tens_.shape.__len__()
 foo_ = function(x_tens_)
 param_ = 3
 input_(foo_.__call__(param_))
 
-if(x_another.shape == x_tens_.shape):
-    print("hell")
-
-else:
-    print("not hell")
-
-foo_
-foo_._change(np.full((5, ), 3.))
-foo_
-foo_.__call__(param_)
-
+foo_._change(np.full((5, ), 2.))
 function_ = foo_._wrapper()
+funct_grad = foo_.wrapper_grad()
 
-function_(x_another)
+input_tens(foo_.compute_gradient())
+
+funct_hessian = foo_.wrapper_hessian()
+
+
+#print(funct_grad(np.full((5,), 0.0)))
+
 from scipy.optimize import minimize
 x_0 = np.array([1.3 , 0.7 , 0.8, 3.0, 2.0])
 res_ = minimize(function_, x_0, method = 'nelder-mead', options = {'xtol': 1e-8, 'disp': True})
-
 print(res_.x)
+res_an_ = minimize(function_, x_0, method = 'BFGS', jac = funct_grad, options = {'disp': False})
+
+print(res_an_)
+
+res_another = minimize(function_, x_0, method = 'Newton-CG', jac = funct_grad,hess = funct_hessian,options = {'xtol' : 1e-8, 'disp': True})
+print(res_another)
