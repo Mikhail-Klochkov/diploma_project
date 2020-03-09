@@ -77,12 +77,6 @@ class function(tf.Module):
 
         return _inner
 
-
-
-
-
-
-
 x_tens_ = tf.constant(np.full((5,), 2.))
 
 x_another = tf.constant(np.full((5,), 1.5))

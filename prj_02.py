@@ -18,6 +18,10 @@ def function_(x_tensor_):
 
     return None
 
+def rosen(x):
+    """The Rosenbrock function"""
+    return np.sum(100.0*(x[1:]-x[:-1]**2.0)**2.0 + (1-x[:-1])**2.0, axis=0)
+
 class Functional(tf.Module):
 
     def tf_to_numpy(tensor): # tensor convert to numpy object
@@ -81,6 +85,18 @@ class Functional(tf.Module):
 
         return grad_grad_
 
+    def wrapper_grad(self):
+        def inner_grad(vars_x, *args) -> float: # should be a vector of shape np.float
+            if(vars_x.shape[0] != self._tensor.shape[0]):
+                assert (1 != 1) ('Error with different size!: ')
+                return None
+            else:
+                self._change(vars_x)
+                return self.compute_gradient().numpy()
+
+        return inner_grad
+
+
     def wrap_functionals(self):
         def inner(vars_x) -> float:
             if(vars_x.shape[0] != self._dimensional):
@@ -131,8 +147,6 @@ x_0 = np.array([1, 2, 3])
 print(F_(x_0))
 res_nelder_mead = minimize(F_, x_0, method = 'nelder-mead',
                            options = {'xtol': 1e-5, 'disp' : True})
-
-
 
 print(res_nelder_mead.x)
 
