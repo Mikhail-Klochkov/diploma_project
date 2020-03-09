@@ -44,8 +44,22 @@ tens_ = tf.convert_to_tensor(rosen(x_))
 input_(tens_)
 tens_.__repr__()
 
+def rosen_tf(x_tens):
+    return tf.reduce_sum(100.0 * (x_tens[1:] - x_tens[:-1] ** 2) ** 2 + (1 - x_tens[:-1]) ** 2)
+
+def diff_(x_tens):
+    return tf.reduce_sum(x_tens) * 3.0
 
 class function(tf.Module):
+
+    def compute_gradient_optional(self, functional_obj):
+        with tf.GradientTape() as g:
+            g.watch(self._tensor)
+            res = functional_obj(self._tensor)
+            grad_ = g.gradient(res, self._tensor)
+
+        return grad_
+
     def __init__(self, x_numpy):
         if(x_numpy.shape.__len__() != 1):
             assert (1 != 1) ('shape is not signature : (n, )!')
@@ -130,6 +144,7 @@ x_tens_ = tf.constant(np.full((5,), 2.))
 x_another = tf.constant(np.full((5,), 1.5))
 
 foo_ = function(x_tens_)
+print("proba: ", foo_.compute_gradient_optional(diff_))
 param_ = 3
 input_(foo_.__call__(param_))
 
@@ -154,3 +169,4 @@ print(res_an_)
 
 res_another = minimize(function_, x_0, method = 'Newton-CG', jac = funct_grad,hess = funct_hessian,options = {'xtol' : 1e-8, 'disp': True})
 print(res_another)
+
