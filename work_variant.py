@@ -16,7 +16,7 @@ from scipy.optimize import NonlinearConstraint
 def input_tens(tens):
     tf.print(tens)
 
-def rosen(x):
+def rosen(x): # numpy example of function
     """The Rosenbrock function"""
     return np.sum(100.0*(x[1:]-x[:-1]**2.0)**2.0 + (1-x[:-1])**2.0, axis=0)
 
@@ -111,7 +111,6 @@ class Nonlinear_constraints(object):
                 matrix_current.append(list_current) # На выходе должна быть матрица n*n от размерности
 
             matrix_total.append(matrix_current)
-            print('matrix_total:' , matrix_total)
             matrix_total_tf = tf.convert_to_tensor(matrix_total)
 
         new_matrix_tf = [] # Чтобы убрать одну размерность!
@@ -133,6 +132,9 @@ class Nonlinear_constraints(object):
 
 class function(tf.Module):
 
+    # аттрибут для вывода значений вектора x - как он у нас меняется
+    # в процессе иттераций алгоритма scipy
+
     def compute_gradient_optional(self, functional_obj):
             with tf.GradientTape() as g:
                 g.watch(self._tensor)
@@ -146,15 +148,17 @@ class function(tf.Module):
             assert (1 != 1) ('shape is not signature : (n, )!')
         else:
             self._tensor = tf.Variable(x_numpy)
+            self._times_call_change = 0
 
-    def __call__(self, some_parameter = 0):
-        self._another = tf.convert_to_tensor(rosen(self._tensor.numpy()))
-        return self._another
+    def __call__(self, some_parameter = 0): # __call__ function and convert in tensor
+
+        return tf.convert_to_tensor(rosen(self._tensor.numpy()))
 
     def __repr__(self):
         return (self._tensor.__repr__(), self._another.__repr__())
 
     def _change(self, new_vector):
+        self._times_call_change += 1
         @tf.function
         def assign_(x_new):
             x_new_tensor = tf.convert_to_tensor(x_new)
@@ -162,6 +166,9 @@ class function(tf.Module):
                 assert (1 != 1) ("shape of tensor is not a equal!")
             else:
                 self._tensor.assign(x_new_tensor)
+
+        if(self._times_call_change % 4 == 0):
+            print('current value of x: ', self._tensor.numpy())
 
         assign_(new_vector)
 
@@ -177,9 +184,11 @@ class function(tf.Module):
         return _inner
 
     def compute_gradient(self):
+                global rosen_tf
                 with tf.GradientTape() as g:
                     g.watch((self._tensor))
-                    f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
+                    f_a = rosen_tf(self._tensor)
+                    #f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
                     grad_ = g.gradient(f_a, self._tensor)
 
                 return grad_
@@ -196,9 +205,11 @@ class function(tf.Module):
         return inner_grad
 
     def compute_hessian(self):
+        global rosen_tf
         with tf.GradientTape(persistent = True) as g:
             g.watch(self._tensor)
-            f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
+            f_a = rosen_tf(self._tensor)
+            #f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
             grad_ = g.gradient(f_a, self._tensor)
             list_ = []
             for iter_ in range(self._tensor.shape[0]):
@@ -230,11 +241,11 @@ funct_hessian = foo_.wrapper_hessian()
 from scipy.optimize import minimize
 x_0 = np.array([1.3 , 0.7])
 
-res_ = minimize(function_, x_0, method = 'nelder-mead', options = {'xtol': 1e-8, 'disp': True})
-print(res_.x)
-res_an_ = minimize(function_, x_0, method = 'BFGS', jac = funct_grad, options = {'disp': False})
+#res_ = minimize(function_, x_0, method = 'nelder-mead', options = {'xtol': 1e-8, 'disp': True})
+#print(res_.x)
+#res_an_ = minimize(function_, x_0, method = 'BFGS', jac = funct_grad, options = {'disp': False})
 
-print(res_an_)
+#print(res_an_)
 
 res_another = minimize(function_, x_0, method = 'Newton-CG', jac = funct_grad,hess = funct_hessian,options = {'xtol' : 1e-8, 'disp': True})
 print(res_another)
@@ -284,5 +295,5 @@ res_constraints_ = minimize(function_, x_0, method = 'trust-constr', jac = funct
                hess = funct_hessian,
                constraints = [linear_constraint, nonlinear_constraints_],
                options = {'verbose': 1}, bounds = bounds)
-print("\n print the total answer:  \n" , res_constraints_.x)
+print(res_constraints_.x)
 
