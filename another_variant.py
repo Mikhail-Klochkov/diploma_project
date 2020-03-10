@@ -61,17 +61,30 @@ class function(tf.Module):
         return grad_
 
     def __init__(self, x_numpy):
+
+        assert( (x_numpy.shape.__len__() == 1), \
+               ('We tae a x_numpy shape not (ndims, ) ! \n shape tensor is : {!s}'.format(x_numpy.shape.__len__())))
+
         if(x_numpy.shape.__len__() != 1):
             assert (1 != 1) ('shape is not signature : (n, )!')
         else:
             self._tensor = tf.Variable(x_numpy)
+            self._dims = x_numpy.shape[0]
 
-    def __call__(self, some_parameter = 0):
+    def _call_f(self, function = rosen):
+       return tf.converct_to_tensor(function(self._tensor)) ## При условии что ее вообще можно преобразовать в тензор
+
+    def __call__(self, some_parameter = 0): # define a default parameter rosen function
         self._another = tf.convert_to_tensor(rosen(self._tensor.numpy()))
-        return self._another
+        return self._another  ## we can define call for another functional pbject
 
     def __repr__(self):
         return (self._tensor.__repr__(), self._another.__repr__())
+
+    def __str__(self):
+
+        return "Dimensional is {!s} \n Vector x is : {!s} \n Value of functional is: {!s} \n".format(
+                                      self._dims, self._tensor.numpy(), self.__call__(some_parameter = 0).numpy())
 
     def _change(self, new_vector):
         @tf.function
