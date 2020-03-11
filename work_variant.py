@@ -29,6 +29,11 @@ def rosen_tf(x_tens):
     return tf.reduce_sum(100.0 * (x_tens[1:] - x_tens[:-1] ** 2) ** 2 + (1 - x_tens[:-1]) ** 2)
 
 
+## second_variant ##
+
+def _funct_(x_tens): # takes a tensor type object
+    return 0.01 * x_tens[0] ** 2 + x_tens[1] ** 2 - 100.
+
 ## define a nonlinear condition functions where is we translate a tensortype
 
 def cons_1(x):
@@ -40,6 +45,25 @@ def cons_2(x):
 list_of_nonlinear_functions = [cons_1, cons_2] #
 
 ## ________end_________
+
+def _funct_2(x):
+    assert(x.shape[0] == 4 and x.shape.__len__() == 1), ('Shape is Wrong!')
+    return x[0] ** 2 + x[1] ** 2 + 2 * x[2] ** 2 + x[3] ** 2 -  5 * x[0] - 5 * x[1] - 21 * x[2] + 7 * x[3]
+
+def non_1(x):
+    assert(x.shape[0] == 4 and x.shape.__len__() == 1), ('Shape is Wrong!')
+    return - x[0] ** 2 - x[1] ** 2 - x[2] ** 2 - x[3] ** 2 - x[0] + x[1] - x[2] + x[3] + 8
+
+def non_2(x):
+    assert(x.shape[0] == 4 and x.shape.__len__() == 1) ('Shape is Wrong!')
+    return - x[0] ** 2 - 2 * x[1] ** 2 - x[2] ** 2 - 2 * x[3] ** 2 + x[0] + x[3] + 10
+
+def non_3(x):
+    assert(x.shape[0] == 4 and x.shape.__len__() == 1) ('Shape is Wrong!')
+    return - 2 * x[0] ** 2 - x[1] ** 2 - x[2] ** 2 - 2 * x[0] + x[1] + x[3] +  5
+
+##
+#list_of_nonlinear_functions = [non_1, non_2, non_3]
 
 class Nonlinear_constraints(object):
 
@@ -143,19 +167,19 @@ class function(tf.Module):
 
             return grad_
 
-    def __init__(self, x_numpy):
+    def __init__(self, x_numpy, functional_obj):
         if(x_numpy.shape.__len__() != 1):
             assert (1 != 1) ('shape is not signature : (n, )!')
         else:
             self._tensor = tf.Variable(x_numpy)
             self._times_call_change = 0
+            self._functional_obj = functional_obj # тензорная функция
 
     def __call__(self, some_parameter = 0): # __call__ function and convert in tensor
-
-        return tf.convert_to_tensor(rosen(self._tensor.numpy()))
+        return self._functional_obj(self._tensor) # we call a function object
 
     def __repr__(self):
-        return (self._tensor.__repr__(), self._another.__repr__())
+        return (self._tensor.__repr__(), self._functional_obj.__repr__())
 
     def _change(self, new_vector):
         self._times_call_change += 1
@@ -166,13 +190,13 @@ class function(tf.Module):
                 assert (1 != 1) ("shape of tensor is not a equal!")
             else:
                 self._tensor.assign(x_new_tensor)
-
+        # для вывода текущих значений
         if(self._times_call_change % 4 == 0):
             print('current value of x: ', self._tensor.numpy())
 
         assign_(new_vector)
 
-    def _wrapper(self):
+    def _wrapper(self): # Обёртка вокруг нашей целевой функции
         def _inner(vars_x) -> np.float32:
             if(vars_x.shape[0] != self._tensor.shape[0]):
                 assert (1 != 1) ('Error with different size!: ')
@@ -184,10 +208,9 @@ class function(tf.Module):
         return _inner
 
     def compute_gradient(self):
-                global rosen_tf
                 with tf.GradientTape() as g:
                     g.watch((self._tensor))
-                    f_a = rosen_tf(self._tensor)
+                    f_a = self._functional_obj(self._tensor)
                     #f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
                     grad_ = g.gradient(f_a, self._tensor)
 
@@ -205,10 +228,9 @@ class function(tf.Module):
         return inner_grad
 
     def compute_hessian(self):
-        global rosen_tf
         with tf.GradientTape(persistent = True) as g:
             g.watch(self._tensor)
-            f_a = rosen_tf(self._tensor)
+            f_a = self._functional_obj(self._tensor)
             #f_a = tf.reduce_sum(100.0 * (self._tensor[1:] - self._tensor[:-1] ** 2) ** 2 + (1 - self._tensor[:-1]) ** 2)
             grad_ = g.gradient(f_a, self._tensor)
             list_ = []
@@ -232,68 +254,83 @@ class function(tf.Module):
         return inner_hessian
 
 
-x_tens_ = tf.constant(np.full((2,), 2.))
-foo_ = function(x_tens_)
+x_tens_ = tf.Variable(np.array([1.3, 0.7]))
+foo_ = function(x_tens_, rosen_tf)
 function_ = foo_._wrapper()
 funct_grad = foo_.wrapper_grad()
 funct_hessian = foo_.wrapper_hessian()
 
 from scipy.optimize import minimize
 x_0 = np.array([1.3 , 0.7])
-
+# Пример поиска минимума тремя разными методам без ограничений
 #res_ = minimize(function_, x_0, method = 'nelder-mead', options = {'xtol': 1e-8, 'disp': True})
 #print(res_.x)
 #res_an_ = minimize(function_, x_0, method = 'BFGS', jac = funct_grad, options = {'disp': False})
-
 #print(res_an_)
-
-res_another = minimize(function_, x_0, method = 'Newton-CG', jac = funct_grad,hess = funct_hessian,options = {'xtol' : 1e-8, 'disp': True})
-print(res_another)
+#res_another = minimize(function_, x_0, method = 'Newton-CG', jac = funct_grad,hess = funct_hessian,options = {'xtol' : 1e-8, 'disp': True})
+#print(res_another)
+# Пример задачи минимизации уже с ограничениями как в статье на scipy.optimize
 
 
 x_ = tf.Variable(np.full((2, ), 2.), dtype = tf.float64)
 nonlinear_constraints = Nonlinear_constraints(x_) # create a object Nonlinear
 
-def cons_f(x):
-    global nonlinear_constraints
-    wrapper_obj = nonlinear_constraints.wrapper_conditions_()
-    wrapper_obj = list(map(lambda x: x.numpy(), wrapper_obj(x)))
-    return wrapper_obj
+def wr_cons_f(nonlinear_constraints):
+    def cons_f(x):
+        wrapper_obj = nonlinear_constraints.wrapper_conditions_()
+        wrapper_obj = list(map(lambda x: x.numpy(), wrapper_obj(x)))
+        return wrapper_obj
+    return cons_f
 
-nonlinear_constraints.jacobian_of_constraints()
+def wr_cons_J(nonlinear_constraints):
+    def cons_J(x):
+        funct_obj = nonlinear_constraints.wrapper_jacobian()
+        funct_obj = list(map(lambda x: list(x.numpy()), funct_obj(x)))
+        return funct_obj
+    return cons_J
 
-def cons_J(x):
-    global nonlinear_constraints
-    funct_obj = nonlinear_constraints.wrapper_jacobian()
-    funct_obj = list(map(lambda x: list(x.numpy()), funct_obj(x)))
-    return funct_obj
+def wr_cons_H(nonlinear_constraints):
+    def cons_H(x, v): # x - np.array() v - np.array() also
+        if(nonlinear_constraints._s != v.shape[0] or v.shape.__len__() != 1):
+            assert(False) ('shape of v vector is wrong!')
 
-cons_J(x_.numpy()) # returned the list object with np.float type
-Hessian_ = nonlinear_constraints.hessian_of_constraints()
+        wrapper_obj = nonlinear_constraints.wrapper_hessians_matrix()
+        wrapper_obj = wrapper_obj(x) # _inner_(vars_x) -> float: по факту тут вычисленный list с tensors hessians
+        total_ = 0 # H(x, v) как в статье
+        for iter_ in range(nonlinear_constraints._s):
+            total_ += v[iter_] * wrapper_obj[iter_].numpy()
 
-def cons_H(x, v): # x - np.array() v - np.array() also
-    global nonlinear_constraints
-    if(nonlinear_constraints._s != v.shape[0] or v.shape.__len__() != 1):
-        assert(False) ('shape of v vector is wrong!')
+        return total_
+    return cons_H
 
-    wrapper_obj = nonlinear_constraints.wrapper_hessians_matrix()
-    wrapper_obj = wrapper_obj(x) # _inner_(vars_x) -> float: по факту тут вычисленный list с tensors hessians
-    total_ = 0 # H(x, v) как в статье
-    for iter_ in range(nonlinear_constraints._s):
-        total_ += v[iter_] * wrapper_obj[iter_].numpy()
-
-    return total_
-
-cons_H(x_.numpy(), np.full((2, ), 3.))
 bounds = Bounds([0, -0.5], [1.0, 2.0])
 linear_constraint = LinearConstraint([[1, 2], [2, 1]], [-np.inf, 1],
                                      [1,1])
-nonlinear_constraints_ = NonlinearConstraint(cons_f, -np.inf, 1,
-                                             jac = cons_J, hess = cons_H)
+nonlinear_constraints_ = NonlinearConstraint(wr_cons_f(nonlinear_constraints), -np.inf, 1,
+                                             jac = wr_cons_J(nonlinear_constraints), hess = wr_cons_H(nonlinear_constraints))
 
 res_constraints_ = minimize(function_, x_0, method = 'trust-constr', jac = funct_grad,
                hess = funct_hessian,
                constraints = [linear_constraint, nonlinear_constraints_],
                options = {'verbose': 1}, bounds = bounds)
 print(res_constraints_.x)
+
+bounds_2 = Bounds([2., 50.], [-50., 50.])
+linear_constraint_2 = LinearConstraint([10, -1], 10, +np.inf)
+
+x_tens_2  = tf.Variable(np.array([-1, -1], dtype = np.float64))
+foo_2 = function(x_tens_2, _funct_)
+function_2 = foo_2._wrapper()
+funct_grad_2 = foo_2.wrapper_grad()
+funct_hessian_2 = foo_2.wrapper_hessian()
+
+x_0_2 = x_tens_2.numpy()
+
+#res_constraints_2 = minimize(function_2, x_0_2, method = 'trust-constr',
+#                            jac = funct_grad_2, hess = funct_hessian_2,
+#                            constraints = [linear_constraint_2],
+#                            options = {'verbose': 1}, bounds = bounds_2)
+
+#print(res_constraints_2.x)
+#foo_2._functional_obj(tf.constant(np.array([2, 0], dtype = np.float64)))
 
