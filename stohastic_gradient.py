@@ -47,14 +47,64 @@ def train(model, inputs, outputs, lr = 0.01):
 		model.W.assign_sub(dW * lr)
 		model.b.assign_sub(db * lr)
 
+
+class test_mod(object):
+
+	def __init__(self):
+		self.W = None
+		self.b = None
+
+	def init_weights(self, init_W, init_b):
+		self.W = tf.Variable(init_W, dtype = tf.float32)
+		self.b = tf.Variable(init_b, dtype = tf.float32)
+
+	def __call__(self, x):
+		return self.W * x + self.b
+
+
+def test_(loss):
+	pass
+
+
+class data_1_d(object):
+
+	def __init__(self, initial_weights = [2., 3.]):
+
+		self.W_1d = tf.constant(initial_weights[0], dtype = tf.float32)
+		self.b_1d = tf.constant(initial_weights[1], dtype = tf.float32)
+
+		self.X_data = None 
+		self.y_data = None
+
+	def _initial_data(self, std = 1, mean = 0.0, num_data = 1000):
+		if(all(self.X_data == None) and all(self.y_data == None)):
+			self.X_data = np.linspace(-2, 2, num_data)
+			self.y_data = self.W_1d.numpy() * self.X_data + self.b_1d.numpy() + np.random.normal(scale = std, loc = mean, 
+																		size = self.X_data.shape)
+			self.X_data = self.X_data[:,np.newaxis]
+			self.y_data = self.y_data[:,np.newaxis]
+            
+	def plot_1_d(self):
+		self._initial_data()
+		plt.figure(figsize = (6, 5))
+		print(type(self.X_data), type(self.y_data))
+		plt.scatter(self.X_data, self.y_data)
+		plt.grid()
+		plt.legend(['data'])
+		plt.show()   
+
+	def _split(self):
+		if(all(self.X_data != None) and all(self.y_data != None)):
+			X_train, X_test, y_train, y_test = train_test_split(self.X_data, self.y_data, train_size = 0.7)
+			return [to_tf(X_train), to_tf(X_test), to_tf(y_train), to_tf(y_test)]      
+        
 class Datasets(object):
 
-	def __init__(self, n_samples = 100, n_features = 2, n_targets = 3, noise = 10, random_state = 42): # numpy objects
+	def __init__(self, n_samples = 100, n_features = 2, n_targets = 3, noise = 10, random_state = 1): # numpy objects
 		self.X, self.y = datasets.make_regression(n_samples = n_samples, n_features = n_features, 
 	           n_targets = n_targets, noise = noise, random_state = random_state)
 		if(n_targets == 1):
 			self.y = self.y[:, np.newaxis]
-		
 		self.X = to_tf(self.X)
 		self.y = to_tf(self.y)
 		self.data = None
@@ -83,10 +133,10 @@ class Datasets(object):
 			plt.grid()
 			plt.show()
 
-data_obj = Datasets(n_samples = 1000, n_targets = 1, n_features = 1)
+data_obj = Datasets(n_samples = 1000, n_targets = 3, n_features = 2, noise = 5)
 X_train, X_test, y_train, y_test = data_obj.split_data(train_size = 0.7)
 
-data_obj.plot()
+#data_obj.plot()
 
 model = Model()
 model.initial_weights(X_train.shape[1], y_train.shape[1])
@@ -121,6 +171,116 @@ def plot_with_learned(model, data_obj): # only for onedimensional task
 
 Loss_ = GD(model, X_train, y_train, epochs = 1000)
 Loss_[-1]
-data_obj.plot(model)
-model.W, model.b
+#data_obj.plot(model)
+model.W, model.b, Loss_[-1]
 
+
+class test_model(object):
+
+	def __init__(self):
+		self.W = None
+		self.b = None
+
+	def init_weights(self, init_W, init_b):
+		self.W = tf.Variable(init_W, dtype = tf.float32)
+		self.b = tf.Variable(init_b, dtype = tf.float32)
+
+	def __call__(self, x):
+		return self.W * x + self.b
+
+	def __str__(self):
+		return "W: {!s}, b: {!s}".format(self.W.numpy(), self.b.numpy())
+
+
+
+def test_(loss):
+	pass
+
+
+class data_1_d(object):
+ 
+	
+    
+	def __init__(self, initial_weights = [1, 3.]):
+
+		self.W_1d = tf.constant(initial_weights[0], dtype = tf.float32)
+		self.b_1d = tf.constant(initial_weights[1], dtype = tf.float32)
+
+		self.X_data = None 
+		self.y_data = None
+		self.flag_init = False
+
+	def _initial_data(self, std = 1, mean = 0.0, num_data = 1000):
+		if(self.flag_init == False):
+			self.flag_init = True
+			self.X_data = np.random.normal(size = (num_data, ))
+			self.y_data = self.W_1d.numpy() * self.X_data + self.b_1d.numpy() + np.random.normal(scale = std, loc = mean, 
+																		size = self.X_data.shape)
+			self.X_data = self.X_data[:,np.newaxis]
+			self.y_data = self.y_data[:,np.newaxis]
+            
+	def plot_1_d(self):
+		self._initial_data()
+		plt.figure(figsize = (6, 5))
+		print(type(self.X_data), type(self.y_data))
+		plt.scatter(self.X_data, self.y_data)
+		plt.grid()
+		plt.legend(['data'])
+  
+
+	def _split(self):
+		if(all(self.X_data != None) and all(self.y_data != None)):
+			X_train, X_test, y_train, y_test = train_test_split(self.X_data, self.y_data, train_size = 0.7)
+			return [to_tf(X_train), to_tf(X_test), to_tf(y_train), to_tf(y_test)]      
+
+    
+def train(model, inputs, outputs, lr = 0.1):
+	with tf.GradientTape(persistent = True) as g:
+		g.watch((model.W, model.b, inputs))
+		current_loss = loss_(outputs, model(inputs))
+		dW, db = g.gradient(current_loss, [model.W, model.b])
+		model.W.assign_sub(dW * lr)
+		model.b.assign_sub(db * lr)
+
+
+def train_numpy(model, inputs, outputs, lr = 0.1):
+	grad_W = (2 / inputs.shape[0])*np.dot(inputs.numpy().T, 
+		          (model(inputs) - outputs).numpy())
+	grad_b = (2 / inputs.shape[0]) * ((model(inputs) - outputs).numpy())
+	grad_b = np.mean(grad_b, axis = 0)
+	model.W.assign_sub(lr * grad_W[0][0])
+	model.b.assign_sub(lr * grad_b[0])
+    
+    
+test_M = test_mod()
+test_M.init_weights(init_W = 2., init_b = 1.)
+
+data = data_1_d()
+data._initial_data()
+data_ = data._split()
+data.plot_1_d()
+
+inputs = data_[0]
+outputs = data_[2]
+print(test_M.W.numpy(), test_M.b.numpy())
+train(test_M, inputs, outputs)
+print(test_M.W.numpy(), test_M.b.numpy())
+test_M(inputs).shape
+loss_(test_M(inputs), outputs)
+
+test_M(inputs).numpy()
+plt.scatter(inputs.numpy(), test_M(inputs).numpy(), c ='r')
+
+train_numpy(test_M, inputs, outputs)
+print(test_M.W.numpy(), test_M.b.numpy())
+
+Ws, bs = [], []
+epochs = range(100)
+for epoch in epochs:
+	Ws.append(test_M.W.numpy())
+	bs.append(test_M.b.numpy())
+	current_loss = loss_(outputs, test_M(inputs))
+    
+	train_numpy(test_M, inputs, outputs, lr = 0.1)
+    
+print('hello',test_M.W.numpy(), test_M.b.numpy())
