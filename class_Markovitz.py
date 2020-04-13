@@ -120,6 +120,9 @@ class Markovitz_theory(object):
             for stack_item in stack_data:
                 plt.plot(np.linspace(0.13, 0.37, 50), [stack_item[0] for a in range(50)],'r--', linewidth = 0.5)
                 plt.scatter(stack_item[1], stack_item[2], c = 'y', marker = '*', linewidths = 3.)
+        else:
+            plt.plot(np.linspace(0.13, 0.37, 50), [self.level_risks for a in range(50)],'r--', linewidth = 0.5)
+            plt.scatter(self._volatility_().numpy(), self.__return_total__().numpy(), c = 'y', marker = '*', linewidths = 3.)
 
         plt.xlabel('Volatility (Std. Deviation)')
         plt.ylabel('Expected Returns')
@@ -135,7 +138,49 @@ class Markovitz_theory(object):
     
     def _volatility_(self):
         return tf.sqrt(tf.matmul(tf.transpose(self.weights), tf.matmul(self.cov_daily_tf, self.weights)))[0][0]
-    
+   
+def wrapper_fuzzy_constraints_(model_mark):
+	cov_matrix = model_mark.cov_daily_tf
+	max_indeces = model_mark.weights.shape[0]
+	def _stack_indeces_(max_value_index):
+			flag = True
+			indeces = []
+			while(flag):
+				pair = [int(a) for a in list(input()) if a != ' ']
+				if any([a > max_value_index for a in pair]):
+					assert (False), ('We enter index more then available!')
+				print(pair)
+				if(pair[0] == 0 or pair[1] == 0):
+					print("Boom!")
+					flag = False
+				else:
+					indeces.append(pair)
+			return indeces
+	stack_indeces = _stack_indeces_(max_indeces)
+
+	def _fuzzy_constraints_(weights_tf):
+		# Так выглядит stack_indeces [[a1, b1], [a2, b2] ... ] end if an == 0  or bn == 0
+		if(weights_tf.shape.__len__() != 2): # Это веса относящиеся только по отношению к модели макровица и вкладов к каждой инвестиции портфеля
+			weights_tf = weights_tf[:, np.newaxis]
+
+		# тут нужно учесть мягкие неравенства в виде новых ограничений
+		# stack индексов должен быть на единицу больше по модулю
+		fuzzy_functional = -tf.reduce_min([weights_tf[iter_1 - 1] - weights_tf[iter_2 - 1] \
+											for iter_1 , iter_2 in stack_indeces])
+		markovitz_functionals = tf.matmul(tf.transpose(weights_tf), tf.matmul(cov_matrix, weights_tf))[0][0] # [0, 0] чтобы после произведения взять единственный элемент от матрицы [1, 1]
+		####### Можно сделать два вида функционалов в теории множественной оптимизации по нескольким целевым функциям
+		lambda_weight = tf.random.uniform(shape = (2,), minval = 1., maxval  = 2.)
+		linear_functional = markovitz_functionals * lambda_weight[0].numpy() + fuzzy_functional * lambda_weight[1].numpy()
+		##### Chebyshev functionals ####
+		chebyshev_flag = False
+		if(chebyshev_flag):
+			epsilon = 1. # Непонятно как его подбирать из каких соображений
+			lambda_weight = tf.random.uniform(shape = (2,), minval = 1., maxval  = 2.)
+			chebyshev_f = tf.reduce_min([lambda_weight[0] * fuzzy_functional, lambda_weight[1] * markovitz_functionals]) + \
+													tf.constant(epsilon) * tf.reduce_sum([fuzzy_functional, markovitz_functionals])
+		return linear_functional
+	return _fuzzy_constraints_
+
 def _wrapper_marcovitz(model_mark):
     cov_matrix = model_mark.cov_daily_tf
     def _Marcovitz_risks(weights_tf):
