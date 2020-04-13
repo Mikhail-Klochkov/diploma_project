@@ -16,7 +16,8 @@ from scipy.optimize import NonlinearConstraint
 
 #############
 key_const = 'f8nzs159xkB-_NJg4LCB'
-dict_of_securities = ['CNP', 'F', 'WMT', 'GE', 'TSLA'] 
+dict_of_securities = ['WMT', 'GE', 'TSLA'] 
+#dict_of_securities = ['CNP', 'F', 'WMT', 'GE', 'TSLA'] 
 quandl.ApiConfig.api_key = key_const
 trading_days = 252
 #############
@@ -143,6 +144,7 @@ def wrapper_fuzzy_constraints_(model_mark):
 	cov_matrix = model_mark.cov_daily_tf
 	max_indeces = model_mark.weights.shape[0]
 	def _stack_indeces_(max_value_index):
+			print("please enter a fuzzy indeces: \n")
 			flag = True
 			indeces = []
 			while(flag):
@@ -172,13 +174,13 @@ def wrapper_fuzzy_constraints_(model_mark):
 		lambda_weight = tf.random.uniform(shape = (2,), minval = 1., maxval  = 2.)
 		linear_functional = markovitz_functionals * lambda_weight[0].numpy() + fuzzy_functional * lambda_weight[1].numpy()
 		##### Chebyshev functionals ####
-		chebyshev_flag = False
+		chebyshev_flag = True
 		if(chebyshev_flag):
 			epsilon = 1. # Непонятно как его подбирать из каких соображений
 			lambda_weight = tf.random.uniform(shape = (2,), minval = 1., maxval  = 2.)
-			chebyshev_f = tf.reduce_min([lambda_weight[0] * fuzzy_functional, lambda_weight[1] * markovitz_functionals]) + \
-													tf.constant(epsilon) * tf.reduce_sum([fuzzy_functional, markovitz_functionals])
-		return linear_functional
+			chebyshev_f = tf.reduce_min([lambda_weight[0].numpy() * fuzzy_functional, lambda_weight[1].numpy() * markovitz_functionals]) + \
+													tf.constant(epsilon).numpy() * tf.reduce_sum([fuzzy_functional, markovitz_functionals])
+		return chebyshev_f
 	return _fuzzy_constraints_
 
 def _wrapper_marcovitz(model_mark):

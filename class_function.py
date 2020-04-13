@@ -23,7 +23,7 @@ class function(tf.Module):
             self._tensor = tf.Variable(x_numpy)
             self._times_call_change = 0
             self._functional_obj = functional_obj 
-
+            self.stack_arg = [] 
     def __call__(self, some_parameter = 0): 
         return self._functional_obj(self._tensor) 
 
@@ -41,7 +41,8 @@ class function(tf.Module):
                 self._tensor.assign(x_new_tensor)
         if(self._times_call_change % 4 == 0):
             print('current value of x: {!s} \n current of Function: {!s} \n'.format(self._tensor.numpy(), 
-            															self.__call__().numpy()))
+            							self.__call__().numpy()))
+            self.stack_arg.append(self._tensor.numpy())
 
         assign_(new_vector)
 
